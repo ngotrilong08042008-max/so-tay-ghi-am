@@ -1,0 +1,1753 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sổ Tay Ghi Âm — Ghi Chú Đọc Tài Liệu</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+          },
+          colors: {
+            cream: '#FAF7F2',
+            sand: '#E8E2D9',
+            charcoal: '#2C2825',
+            muted: '#78716C',
+            terracotta: '#D94E4E',
+            'terracotta-dark': '#B83B3B',
+            sage: '#3F704D',
+            'sage-dark': '#2F573B',
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    body {
+      background-color: #FAF7F2;
+      color: #2C2825;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Thanh cuộn tinh tế */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #D6CFC4;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #B8AFA2;
+    }
+
+    /* Hiệu ứng nhịp thở cho nút đang ghi âm */
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); opacity: 0.7; }
+      70% { transform: scale(1.18); opacity: 0; }
+      100% { transform: scale(1.18); opacity: 0; }
+    }
+    .recording-pulse::before {
+      content: '';
+      position: absolute;
+      inset: -6px;
+      border-radius: 9999px;
+      background-color: #D94E4E;
+      animation: pulse-ring 1.6s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+      z-index: -1;
+    }
+
+    /* Tùy chỉnh nhẹ trình phát audio mặc định */
+    audio {
+      height: 36px;
+      border-radius: 9999px;
+      outline: none;
+    }
+    audio::-webkit-media-controls-panel {
+      background-color: #F5F1EA;
+    }
+
+    /* Hiệu ứng Toast */
+    @keyframes toast-in {
+      from { transform: translateY(16px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .toast-enter {
+      animation: toast-in 0.25s ease-out forwards;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col overflow-x-hidden selection:bg-[#E8E2D9] selection:text-[#2C2825]">
+
+  <!-- Thanh tiêu đề di động (chỉ hiện trên màn hình nhỏ) -->
+  <header class="lg:hidden sticky top-0 z-30 bg-[#FAF7F2]/95 backdrop-blur border-b border-sand px-4 py-3 flex items-center justify-between">
+    <button id="mobileMenuBtn" class="p-2 -ml-2 rounded-xl text-charcoal hover:bg-sand/50 transition flex items-center gap-2" aria-label="Mở danh sách mục">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h10" />
+      </svg>
+      <span class="font-semibold text-base tracking-tight">Sổ Tay Ghi Âm</span>
+    </button>
+    <button id="mobileQuickAddSectionBtn" class="px-3 py-1.5 rounded-xl bg-white border border-sand text-sm font-medium text-charcoal shadow-sm hover:bg-sand/30 transition">
+      + Mục mới
+    </button>
+  </header>
+
+  <!-- Lớp phủ nền cho Sidebar trên di động -->
+  <div id="sidebarBackdrop" class="fixed inset-0 bg-black/30 backdrop-blur-[1px] z-40 hidden lg:hidden transition-opacity"></div>
+
+  <!-- Bố cục chính: Sidebar + Nội dung -->
+  <div class="flex-1 flex max-w-[1440px] w-full mx-auto relative">
+
+    <!-- SIDEBAR: Quản lý các Mục / Chương -->
+    <aside id="sidebar" class="fixed lg:sticky top-0 left-0 z-50 lg:z-10 h-screen w-[290px] sm:w-[310px] bg-white border-r border-sand flex flex-col transform -translate-x-full lg:translate-x-0 transition-transform duration-200 ease-out shadow-xl lg:shadow-none">
+      <!-- Đầu Sidebar -->
+      <div class="p-5 border-b border-sand flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-terracotta/10 text-terracotta flex items-center justify-center">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+            </svg>
+          </div>
+          <div>
+            <h1 class="font-bold text-base text-charcoal leading-tight">Sổ Tay Ghi Âm</h1>
+            <p class="text-xs text-muted">Ghi chú đọc tài liệu cho Gemini</p>
+          </div>
+        </div>
+        <button id="closeSidebarBtn" class="lg:hidden p-2 rounded-xl text-muted hover:bg-cream hover:text-charcoal" aria-label="Đóng thanh bên">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Nút tạo mục mới -->
+      <div class="p-4 pb-2">
+        <button id="addSectionBtn" class="w-full py-2.5 px-4 rounded-xl bg-charcoal text-white font-medium text-sm hover:bg-charcoal/90 active:scale-[0.99] transition flex items-center justify-center gap-2 shadow-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+          Tạo mục mới
+        </button>
+      </div>
+
+      <!-- Danh sách các mục -->
+      <div class="px-3 py-2 flex-1 overflow-y-auto" id="sectionListContainer">
+        <!-- Được render bằng JS -->
+      </div>
+
+      <!-- Chân Sidebar: Trạng thái lưu trữ & Sao lưu / Khôi phục -->
+      <div class="p-4 border-t border-sand bg-cream/60 space-y-3">
+        <div class="flex items-center gap-2 text-xs text-muted">
+          <span class="w-2 h-2 rounded-full bg-sage shrink-0" id="storageDot"></span>
+          <span id="storageStatusText" class="truncate">Đã lưu an toàn trên máy • 0 MB</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <button id="backupBtn" class="py-2 px-2.5 rounded-xl bg-white border border-sand text-xs font-medium text-charcoal hover:bg-sand/30 transition flex items-center justify-center gap-1.5" title="Xuất toàn bộ dữ liệu ra file .json">
+            <svg class="w-3.5 h-3.5 text-muted" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+            Sao lưu (.json)
+          </button>
+          <button id="restoreBtn" class="py-2 px-2.5 rounded-xl bg-white border border-sand text-xs font-medium text-charcoal hover:bg-sand/30 transition flex items-center justify-center gap-1.5" title="Khôi phục từ file sao lưu .json">
+            <svg class="w-3.5 h-3.5 text-muted" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+            </svg>
+            Khôi phục
+          </button>
+          <input type="file" id="restoreFileInput" accept=".json,application/json" class="hidden" />
+        </div>
+      </div>
+    </aside>
+
+    <!-- KHU VỰC NỘI DUNG CHÍNH -->
+    <main class="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 flex flex-col">
+
+      <!-- Màn hình chào khi chưa có mục nào -->
+      <section id="emptyWelcomeView" class="hidden flex-1 flex items-center justify-center">
+        <div class="max-w-md w-full bg-white border border-sand rounded-3xl p-8 text-center shadow-sm">
+          <div class="w-16 h-16 mx-auto mb-5 rounded-2xl bg-terracotta/10 text-terracotta flex items-center justify-center">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+            </svg>
+          </div>
+          <h2 class="text-xl font-bold text-charcoal mb-2">Bắt đầu ghi chú bằng giọng nói</h2>
+          <p class="text-sm text-muted leading-relaxed mb-6">
+            Tạo mục theo từng chương hoặc tài liệu bạn đang đọc. Mọi bản ghi âm đều được lưu bền vững ngay trên máy và có thể ghép thành 1 file duy nhất để gửi cho Gemini tổng hợp.
+          </p>
+          <button id="welcomeCreateBtn" class="w-full py-3 px-5 rounded-2xl bg-terracotta text-white font-semibold text-sm hover:bg-terracotta-dark active:scale-[0.99] transition shadow-sm flex items-center justify-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Tạo mục đầu tiên (VD: Chương 1)
+          </button>
+        </div>
+      </section>
+
+      <!-- Màn hình làm việc của một mục cụ thể -->
+      <section id="activeSectionView" class="hidden max-w-3xl w-full mx-auto space-y-6">
+
+        <!-- Tiêu đề mục & Nút thao tác -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <h2 id="currentSectionTitle" class="text-2xl sm:text-3xl font-bold text-charcoal truncate">Chương 1</h2>
+              <button id="renameCurrentSectionBtn" class="p-1.5 rounded-lg text-muted hover:text-charcoal hover:bg-sand/50 transition shrink-0" title="Đổi tên mục">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+                </svg>
+              </button>
+            </div>
+            <p id="currentSectionMeta" class="text-sm text-muted mt-1">0 bản ghi âm • 00:00</p>
+          </div>
+
+          <!-- Nút xuất file gộp nổi bật -->
+          <button id="openExportModalBtn" disabled class="px-5 py-3 rounded-2xl bg-sage text-white font-semibold text-sm hover:bg-sage-dark disabled:opacity-45 disabled:cursor-not-allowed active:scale-[0.99] transition shadow-sm flex items-center justify-center gap-2 shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 8.25H7.5a2.25 2.25 0 00-2.25 2.25v9a2.25 2.25 0 002.25 2.25h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25H15M9 12l3 3m0 0l3-3m-3 3V2.25" />
+            </svg>
+            <span id="exportBtnLabel">Xuất file gộp (.WAV)</span>
+          </button>
+        </div>
+
+        <!-- KHU VỰC GHI ÂM NHANH -->
+        <div class="bg-white border border-sand rounded-3xl p-5 sm:p-6 shadow-sm">
+          <!-- Trạng thái chờ ghi âm -->
+          <div id="recorderIdleState" class="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="text-center sm:text-left">
+              <h3 class="font-semibold text-base text-charcoal">Ghi âm nhanh ý cần nhớ</h3>
+              <p class="text-xs sm:text-sm text-muted mt-0.5">
+                Bấm nút bên cạnh hoặc nhấn phím <kbd class="px-1.5 py-0.5 bg-cream border border-sand rounded text-xs font-mono text-charcoal">Space</kbd> để ghi ngay.
+              </p>
+            </div>
+            <button id="startRecordBtn" class="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-terracotta text-white font-semibold text-base hover:bg-terracotta-dark active:scale-[0.98] transition shadow-md shadow-terracotta/20 flex items-center justify-center gap-2.5">
+              <span class="w-3 h-3 rounded-full bg-white"></span>
+              Ghi âm nhanh
+            </button>
+          </div>
+
+          <!-- Trạng thái đang ghi âm -->
+          <div id="recorderActiveState" class="hidden space-y-4">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <span id="recLiveDot" class="relative w-3 h-3 rounded-full bg-terracotta recording-pulse"></span>
+                <span id="recStatusLabel" class="text-sm font-semibold text-terracotta">Đang ghi âm...</span>
+              </div>
+              <div id="recTimer" class="font-mono text-2xl font-bold text-charcoal tracking-wider">00:00</div>
+            </div>
+
+            <!-- Sóng âm thanh thời gian thực -->
+            <div class="w-full h-20 bg-cream rounded-2xl border border-sand overflow-hidden flex items-center justify-center relative">
+              <canvas id="waveformCanvas" class="w-full h-full block"></canvas>
+            </div>
+
+            <!-- Các nút điều khiển ghi âm -->
+            <div class="flex flex-wrap items-center justify-between gap-2.5 pt-1">
+              <button id="cancelRecordBtn" class="px-4 py-2.5 rounded-xl bg-cream border border-sand text-sm font-medium text-muted hover:text-charcoal hover:bg-sand/40 transition">
+                Hủy bỏ
+              </button>
+
+              <div class="flex items-center gap-2.5">
+                <button id="pauseResumeBtn" class="px-4 py-2.5 rounded-xl bg-white border border-sand text-sm font-medium text-charcoal hover:bg-cream transition flex items-center gap-1.5">
+                  <svg id="pauseIcon" class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M6 5h4v14H6zm8 0h4v14h-4z" />
+                  </svg>
+                  <svg id="resumeIcon" class="w-4 h-4 hidden" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                  <span id="pauseResumeText">Tạm dừng</span>
+                </button>
+
+                <button id="saveRecordBtn" class="px-6 py-2.5 rounded-xl bg-terracotta text-white font-semibold text-sm hover:bg-terracotta-dark active:scale-[0.98] transition shadow-sm flex items-center gap-2">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </svg>
+                  Lưu bản ghi
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Thông báo lỗi Micro (nếu bị từ chối quyền) -->
+          <div id="micErrorBox" class="hidden mt-4 p-4 rounded-2xl bg-red-50 border border-red-200 text-sm text-red-800 space-y-1">
+            <p class="font-semibold flex items-center gap-1.5">
+              <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+              </svg>
+              Không thể truy cập Micro
+            </p>
+            <p id="micErrorText" class="text-xs leading-relaxed text-red-700"></p>
+          </div>
+        </div>
+
+        <!-- DANH SÁCH CÁC BẢN GHI ÂM TRONG MỤC -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between px-1">
+            <h3 class="text-sm font-semibold text-muted uppercase tracking-wider">Danh sách bản ghi</h3>
+            <span class="text-xs text-muted">Bấm vào tiêu đề để sửa nhanh</span>
+          </div>
+
+          <div id="clipsList" class="space-y-3">
+            <!-- Được render bằng JS -->
+          </div>
+        </div>
+
+      </section>
+    </main>
+  </div>
+
+  <!-- MODAL: Tạo / Đổi tên Mục -->
+  <div id="sectionModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/40 backdrop-blur-[2px]">
+    <div class="bg-white border border-sand rounded-3xl max-w-md w-full p-6 shadow-xl space-y-4">
+      <h3 id="sectionModalTitle" class="text-lg font-bold text-charcoal">Tạo mục mới</h3>
+      <div>
+        <label for="sectionNameInput" class="block text-xs font-medium text-muted mb-1.5">Tên mục / Chương</label>
+        <input id="sectionNameInput" type="text" placeholder="VD: Chương 1 - Tổng quan kiến trúc" class="w-full px-4 py-3 rounded-xl bg-cream border border-sand text-charcoal text-sm focus:outline-none focus:ring-2 focus:ring-charcoal/20 focus:border-charcoal" />
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button id="cancelSectionModalBtn" class="px-4 py-2.5 rounded-xl bg-cream text-charcoal text-sm font-medium hover:bg-sand/50 transition">Hủy</button>
+        <button id="confirmSectionModalBtn" class="px-5 py-2.5 rounded-xl bg-charcoal text-white text-sm font-semibold hover:bg-charcoal/90 transition">Lưu lại</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Xác nhận xóa (Thay thế window.confirm) -->
+  <div id="confirmModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/40 backdrop-blur-[2px]">
+    <div class="bg-white border border-sand rounded-3xl max-w-sm w-full p-6 shadow-xl space-y-4">
+      <h3 id="confirmModalTitle" class="text-lg font-bold text-charcoal">Xác nhận</h3>
+      <p id="confirmModalMessage" class="text-sm text-muted leading-relaxed"></p>
+      <div class="flex justify-end gap-2 pt-2">
+        <button id="cancelConfirmModalBtn" class="px-4 py-2.5 rounded-xl bg-cream text-charcoal text-sm font-medium hover:bg-sand/50 transition">Hủy</button>
+        <button id="okConfirmModalBtn" class="px-5 py-2.5 rounded-xl bg-terracotta text-white text-sm font-semibold hover:bg-terracotta-dark transition">Xóa</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Xuất file gộp (.WAV) cho Gemini -->
+  <div id="exportModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/40 backdrop-blur-[2px]">
+    <div class="bg-white border border-sand rounded-3xl max-w-lg w-full p-6 shadow-xl space-y-5 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <h3 class="text-lg font-bold text-charcoal">Xuất file gộp cho Gemini</h3>
+          <p id="exportModalSubtitle" class="text-xs text-muted mt-0.5">Chuẩn 16kHz Mono WAV • Tối ưu nhận diện giọng nói AI</p>
+        </div>
+        <button id="closeExportModalBtn" class="p-1.5 rounded-xl text-muted hover:bg-cream hover:text-charcoal">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Chọn khoảng lặng giữa các đoạn -->
+      <div class="space-y-2">
+        <label class="block text-xs font-semibold text-charcoal">Khoảng lặng giữa các đoạn ghi âm</label>
+        <div class="grid grid-cols-3 gap-2" id="silenceGapOptions">
+          <button type="button" data-gap="0" class="gap-option py-2.5 px-3 rounded-xl border border-sand bg-cream text-xs font-medium text-charcoal hover:border-sage transition">0 giây (Nối liền)</button>
+          <button type="button" data-gap="0.6" class="gap-option py-2.5 px-3 rounded-xl border-2 border-sage bg-sage/10 text-xs font-semibold text-sage transition">0.6 giây (Khuyên dùng)</button>
+          <button type="button" data-gap="1.2" class="gap-option py-2.5 px-3 rounded-xl border border-sand bg-cream text-xs font-medium text-charcoal hover:border-sage transition">1.2 giây (Tách rõ)</button>
+        </div>
+        <p class="text-[11px] text-muted">Khoảng lặng nhỏ giúp Gemini dễ phân biệt ranh giới giữa các ý ghi chú khác nhau.</p>
+      </div>
+
+      <!-- Thanh tiến trình ghép -->
+      <div id="exportProgressContainer" class="hidden space-y-2">
+        <div class="flex justify-between text-xs font-medium text-charcoal">
+          <span id="exportProgressText">Đang xử lý âm thanh...</span>
+          <span id="exportProgressPercent">0%</span>
+        </div>
+        <div class="w-full h-2.5 bg-cream rounded-full overflow-hidden border border-sand">
+          <div id="exportProgressBar" class="h-full bg-sage rounded-full transition-all duration-200" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <!-- Kết quả sau khi ghép thành công -->
+      <div id="exportResultContainer" class="hidden space-y-4 p-4 rounded-2xl bg-cream border border-sand">
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2 text-sage font-semibold text-sm">
+            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>Đã ghép & tải xuống thành công!</span>
+          </div>
+          <span id="exportFileSize" class="text-xs font-mono text-muted"></span>
+        </div>
+
+        <!-- Nghe thử file gộp -->
+        <div>
+          <p class="text-xs text-muted mb-1.5">Nghe thử file gộp:</p>
+          <audio id="mergedPreviewAudio" controls class="w-full"></audio>
+        </div>
+
+        <!-- Tải lại & Sao chép Prompt cho Gemini -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+          <button id="redownloadMergedBtn" class="py-2.5 px-4 rounded-xl bg-white border border-sand text-xs font-semibold text-charcoal hover:bg-sand/30 transition flex items-center justify-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+            Tải lại file .WAV
+          </button>
+          <button id="copyGeminiPromptBtn" class="py-2.5 px-4 rounded-xl bg-charcoal text-white text-xs font-semibold hover:bg-charcoal/90 transition flex items-center justify-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
+            </svg>
+            Sao chép Prompt cho Gemini
+          </button>
+        </div>
+      </div>
+
+      <!-- Nút bắt đầu ghép -->
+      <div class="flex justify-end gap-2 pt-1">
+        <button id="cancelExportBtn" class="px-4 py-2.5 rounded-xl bg-cream text-charcoal text-sm font-medium hover:bg-sand/50 transition">Đóng</button>
+        <button id="startMergeBtn" class="px-6 py-2.5 rounded-xl bg-sage text-white text-sm font-semibold hover:bg-sage-dark transition shadow-sm flex items-center gap-2">
+          Bắt đầu ghép & Xuất (.WAV)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Khu vực hiển thị Toast thông báo -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-[60] flex flex-col gap-2 max-w-xs w-full pointer-events-none"></div>
+
+  <script>
+    /**
+     * ============================================================================
+     * 1. LỚP LƯU TRỮ BỀN VỮNG INDEXEDDB ('VoiceStudyNotesDB')
+     * ============================================================================
+     */
+    const DB_NAME = 'VoiceStudyNotesDB';
+    const DB_VERSION = 1;
+    let db = null;
+
+    function openDatabase() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+        request.onupgradeneeded = (event) => {
+          const database = event.target.result;
+          if (!database.objectStoreNames.contains('sections')) {
+            database.createObjectStore('sections', { keyPath: 'id' });
+          }
+          if (!database.objectStoreNames.contains('clips')) {
+            const clipStore = database.createObjectStore('clips', { keyPath: 'id' });
+            clipStore.createIndex('sectionId', 'sectionId', { unique: false });
+          }
+        };
+
+        request.onsuccess = (event) => {
+          db = event.target.result;
+          resolve(db);
+        };
+
+        request.onerror = (event) => {
+          reject(event.target.error);
+        };
+      });
+    }
+
+    function dbGetAll(storeName) {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, 'readonly');
+        const store = tx.objectStore(storeName);
+        const req = store.getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    function dbPut(storeName, item) {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, 'readwrite');
+        const store = tx.objectStore(storeName);
+        const req = store.put(item);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    function dbDelete(storeName, key) {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, 'readwrite');
+        const store = tx.objectStore(storeName);
+        const req = store.delete(key);
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    function dbGetClipsBySection(sectionId) {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction('clips', 'readonly');
+        const store = tx.objectStore('clips');
+        const index = store.index('sectionId');
+        const req = index.getAll(sectionId);
+        req.onsuccess = () => {
+          const list = req.result || [];
+          list.sort((a, b) => (a.order ?? a.createdAt) - (b.order ?? b.createdAt));
+          resolve(list);
+        };
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    /**
+     * ============================================================================
+     * 2. TRẠNG THÁI ỨNG DỤNG & QUẢN LÝ BỘ NHỚ
+     * ============================================================================
+     */
+    const state = {
+      sections: [],
+      clipsBySection: {}, // Map sectionId -> array of clips
+      activeSectionId: null,
+      activeObjectURLs: [], // Quản lý URL để revoke sạch sẽ
+      selectedGapSeconds: 0.6,
+      lastMergedBlob: null,
+      lastMergedFilename: '',
+      lastMergedUrl: null,
+    };
+
+    // Trạng thái ghi âm
+    const recorderState = {
+      isRecording: false,
+      isPaused: false,
+      mediaRecorder: null,
+      mediaStream: null,
+      audioContext: null,
+      analyser: null,
+      animationFrameId: null,
+      chunks: [],
+      mimeType: '',
+      startTime: 0,
+      accumulatedMs: 0,
+      timerInterval: null,
+      cancelled: false,
+    };
+
+    function revokeClipURLs() {
+      state.activeObjectURLs.forEach((url) => URL.revokeObjectURL(url));
+      state.activeObjectURLs = [];
+    }
+
+    function generateId(prefix) {
+      return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    }
+
+    /**
+     * ============================================================================
+     * 3. TIỆN ÍCH ĐỊNH DẠNG & THÔNG BÁO TOAST
+     * ============================================================================
+     */
+    function formatDuration(seconds) {
+      const s = Math.max(0, Math.round(seconds || 0));
+      const mins = Math.floor(s / 60);
+      const secs = s % 60;
+      return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+
+    function formatTime(timestamp) {
+      const d = new Date(timestamp);
+      return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) +
+        ' • ' +
+        d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+    }
+
+    function formatBytes(bytes) {
+      if (!bytes || bytes <= 0) return '0 MB';
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+      return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+    }
+
+    function slugifyVietnamese(str) {
+      return (str || 'Ghi_chu')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'D')
+        .replace(/[^a-zA-Z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '') || 'Ghi_chu';
+    }
+
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      const bgClass = type === 'error' ? 'bg-terracotta text-white' : 'bg-charcoal text-white';
+      toast.className = `toast-enter pointer-events-auto px-4 py-3 rounded-2xl shadow-lg text-sm font-medium flex items-center gap-2.5 ${bgClass}`;
+      toast.innerHTML = `
+        <span class="w-2 h-2 rounded-full ${type === 'error' ? 'bg-white' : 'bg-emerald-400'} shrink-0"></span>
+        <span>${escapeHtml(message)}</span>
+      `;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(8px)';
+        toast.style.transition = 'all 0.25s ease';
+        setTimeout(() => toast.remove(), 260);
+      }, 3000);
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str ?? '';
+      return div.innerHTML;
+    }
+
+    /**
+     * ============================================================================
+     * 4. CẬP NHẬT DUNG LƯỢNG LƯU TRỮ & YÊU CẦU PERSISTENT STORAGE
+     * ============================================================================
+     */
+    async function requestPersistentStorage() {
+      try {
+        if (navigator.storage && navigator.storage.persist) {
+          await navigator.storage.persist();
+        }
+      } catch (e) {
+        console.warn('Không thể yêu cầu persistent storage:', e);
+      }
+    }
+
+    async function updateStorageStatus() {
+      const statusEl = document.getElementById('storageStatusText');
+      try {
+        let totalBlobBytes = 0;
+        Object.values(state.clipsBySection).forEach((clips) => {
+          clips.forEach((c) => {
+            if (c.blob && c.blob.size) totalBlobBytes += c.blob.size;
+          });
+        });
+
+        let displaySize = formatBytes(totalBlobBytes);
+        if (totalBlobBytes === 0 && navigator.storage && navigator.storage.estimate) {
+          const est = await navigator.storage.estimate();
+          if (est.usage && est.usage > 0) {
+            displaySize = formatBytes(est.usage);
+          }
+        }
+        statusEl.textContent = `Đã lưu an toàn trên máy • ${displaySize}`;
+      } catch (e) {
+        statusEl.textContent = 'Đã lưu an toàn trên máy';
+      }
+    }
+
+    /**
+     * ============================================================================
+     * 5. TẢI DỮ LIỆU & RENDER GIAO DIỆN
+     * ============================================================================
+     */
+    async function loadAllData() {
+      const sections = await dbGetAll('sections');
+      sections.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      state.sections = sections;
+
+      const allClips = await dbGetAll('clips');
+      const map = {};
+      sections.forEach((s) => (map[s.id] = []));
+      allClips.forEach((c) => {
+        if (!map[c.sectionId]) map[c.sectionId] = [];
+        map[c.sectionId].push(c);
+      });
+      Object.keys(map).forEach((sid) => {
+        map[sid].sort((a, b) => (a.order ?? a.createdAt) - (b.order ?? b.createdAt));
+      });
+      state.clipsBySection = map;
+
+      // Chọn mục đang hoạt động nếu hợp lệ, hoặc chọn mục đầu tiên
+      if (state.activeSectionId && !sections.some((s) => s.id === state.activeSectionId)) {
+        state.activeSectionId = null;
+      }
+      if (!state.activeSectionId && sections.length > 0) {
+        state.activeSectionId = sections[0].id;
+      }
+
+      renderSidebar();
+      renderMainArea();
+      updateStorageStatus();
+    }
+
+    function renderSidebar() {
+      const container = document.getElementById('sectionListContainer');
+      if (state.sections.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-10 px-4 text-xs text-muted">
+            Chưa có mục nào.<br/>Hãy bấm "Tạo mục mới" để bắt đầu.
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = '';
+      state.sections.forEach((sec) => {
+        const clips = state.clipsBySection[sec.id] || [];
+        const totalDur = clips.reduce((acc, c) => acc + (c.duration || 0), 0);
+        const isActive = sec.id === state.activeSectionId;
+
+        const item = document.createElement('div');
+        item.className = `group relative flex items-center justify-between gap-2 px-3.5 py-3 mb-1.5 rounded-2xl cursor-pointer transition ${
+          isActive
+            ? 'bg-cream border border-sand shadow-sm'
+            : 'hover:bg-cream/60 border border-transparent'
+        }`;
+
+        item.innerHTML = `
+          <div class="min-w-0 flex-1">
+            <div class="font-semibold text-sm text-charcoal truncate">${escapeHtml(sec.title)}</div>
+            <div class="text-xs text-muted mt-0.5">${clips.length} bản ghi • ${formatDuration(totalDur)}</div>
+          </div>
+          <div class="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition">
+            <button class="edit-sec-btn p-1.5 rounded-lg text-muted hover:text-charcoal hover:bg-white" title="Đổi tên">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z" />
+              </svg>
+            </button>
+            <button class="del-sec-btn p-1.5 rounded-lg text-muted hover:text-terracotta hover:bg-white" title="Xóa mục">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+              </svg>
+            </button>
+          </div>
+        `;
+
+        item.addEventListener('click', () => {
+          if (recorderState.isRecording) {
+            showToast('Vui lòng lưu hoặc hủy bản ghi hiện tại trước khi chuyển mục.', 'error');
+            return;
+          }
+          state.activeSectionId = sec.id;
+          closeMobileSidebar();
+          renderSidebar();
+          renderMainArea();
+        });
+
+        item.querySelector('.edit-sec-btn').addEventListener('click', (e) => {
+          e.stopPropagation();
+          openSectionModal('rename', sec);
+        });
+
+        item.querySelector('.del-sec-btn').addEventListener('click', (e) => {
+          e.stopPropagation();
+          confirmDeleteSection(sec);
+        });
+
+        container.appendChild(item);
+      });
+    }
+
+    function renderMainArea() {
+      const emptyView = document.getElementById('emptyWelcomeView');
+      const activeView = document.getElementById('activeSectionView');
+
+      if (!state.activeSectionId) {
+        emptyView.classList.remove('hidden');
+        activeView.classList.add('hidden');
+        return;
+      }
+
+      const section = state.sections.find((s) => s.id === state.activeSectionId);
+      if (!section) {
+        emptyView.classList.remove('hidden');
+        activeView.classList.add('hidden');
+        return;
+      }
+
+      emptyView.classList.add('hidden');
+      activeView.classList.remove('hidden');
+
+      const clips = state.clipsBySection[section.id] || [];
+      const totalDur = clips.reduce((acc, c) => acc + (c.duration || 0), 0);
+
+      document.getElementById('currentSectionTitle').textContent = section.title;
+      document.getElementById('currentSectionMeta').textContent = `${clips.length} bản ghi âm • Tổng thời lượng ${formatDuration(totalDur)}`;
+
+      const exportBtn = document.getElementById('openExportModalBtn');
+      const exportLabel = document.getElementById('exportBtnLabel');
+      exportBtn.disabled = clips.length === 0;
+      exportLabel.textContent = clips.length > 0
+        ? `Xuất file gộp (${clips.length} đoạn • ${formatDuration(totalDur)})`
+        : 'Xuất file gộp (.WAV)';
+
+      renderClipsList(clips);
+    }
+
+    function renderClipsList(clips) {
+      revokeClipURLs();
+      const listEl = document.getElementById('clipsList');
+
+      if (clips.length === 0) {
+        listEl.innerHTML = `
+          <div class="bg-white/70 border border-dashed border-sand rounded-3xl p-8 text-center">
+            <p class="text-sm font-medium text-charcoal">Chưa có bản ghi âm nào trong mục này</p>
+            <p class="text-xs text-muted mt-1">Bấm nút "Ghi âm nhanh" ở trên mỗi khi bạn đọc tới ý quan trọng.</p>
+          </div>
+        `;
+        return;
+      }
+
+      listEl.innerHTML = '';
+      clips.forEach((clip, idx) => {
+        const audioUrl = URL.createObjectURL(clip.blob);
+        state.activeObjectURLs.push(audioUrl);
+
+        const card = document.createElement('div');
+        card.className = 'bg-white border border-sand rounded-2xl p-4 shadow-sm hover:border-[#D6CFC4] transition space-y-3';
+
+        card.innerHTML = `
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex items-start gap-3 min-w-0 flex-1">
+              <span class="w-7 h-7 rounded-xl bg-cream border border-sand text-xs font-bold text-charcoal flex items-center justify-center shrink-0 mt-0.5">
+                ${idx + 1}
+              </span>
+              <div class="min-w-0 flex-1">
+                <div class="clip-title-display font-semibold text-sm text-charcoal truncate cursor-pointer hover:text-terracotta transition" title="Bấm để đổi tên">
+                  ${escapeHtml(clip.title)}
+                </div>
+                <input type="text" class="clip-title-input hidden w-full px-2.5 py-1 rounded-lg bg-cream border border-charcoal/40 text-sm font-semibold text-charcoal focus:outline-none" value="${escapeHtml(clip.title)}" />
+                <div class="text-xs text-muted mt-0.5 flex items-center gap-2">
+                  <span class="font-mono font-medium text-charcoal/80">${formatDuration(clip.duration)}</span>
+                  <span>•</span>
+                  <span>${formatTime(clip.createdAt)}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Nút sắp xếp, tải lẻ, xóa -->
+            <div class="flex items-center gap-1 shrink-0">
+              <button class="move-up-btn p-1.5 rounded-lg text-muted hover:text-charcoal hover:bg-cream disabled:opacity-30 disabled:pointer-events-none" ${idx === 0 ? 'disabled' : ''} title="Di chuyển lên">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
+                </svg>
+              </button>
+              <button class="move-down-btn p-1.5 rounded-lg text-muted hover:text-charcoal hover:bg-cream disabled:opacity-30 disabled:pointer-events-none" ${idx === clips.length - 1 ? 'disabled' : ''} title="Di chuyển xuống">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                </svg>
+              </button>
+              <button class="download-clip-btn p-1.5 rounded-lg text-muted hover:text-sage hover:bg-cream" title="Tải riêng đoạn này">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+              </button>
+              <button class="delete-clip-btn p-1.5 rounded-lg text-muted hover:text-terracotta hover:bg-cream" title="Xóa bản ghi">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <audio controls src="${audioUrl}" class="w-full"></audio>
+        `;
+
+        // Sửa nhanh tiêu đề bản ghi
+        const titleDisplay = card.querySelector('.clip-title-display');
+        const titleInput = card.querySelector('.clip-title-input');
+
+        const commitRename = async () => {
+          const newTitle = titleInput.value.trim() || clip.title;
+          titleInput.classList.add('hidden');
+          titleDisplay.classList.remove('hidden');
+          if (newTitle !== clip.title) {
+            clip.title = newTitle;
+            await dbPut('clips', clip);
+            titleDisplay.textContent = newTitle;
+            showToast('Đã cập nhật tên bản ghi');
+          }
+        };
+
+        titleDisplay.addEventListener('click', () => {
+          titleDisplay.classList.add('hidden');
+          titleInput.classList.remove('hidden');
+          titleInput.focus();
+          titleInput.select();
+        });
+        titleInput.addEventListener('blur', commitRename);
+        titleInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') titleInput.blur();
+          if (e.key === 'Escape') {
+            titleInput.value = clip.title;
+            titleInput.blur();
+          }
+        });
+
+        // Di chuyển lên / xuống
+        card.querySelector('.move-up-btn').addEventListener('click', () => reorderClip(idx, idx - 1));
+        card.querySelector('.move-down-btn').addEventListener('click', () => reorderClip(idx, idx + 1));
+
+        // Tải riêng đoạn ghi âm
+        card.querySelector('.download-clip-btn').addEventListener('click', () => {
+          const ext = getExtensionFromMime(clip.mimeType);
+          const filename = `${slugifyVietnamese(clip.title)}.${ext}`;
+          triggerDownload(clip.blob, filename);
+        });
+
+        // Xóa đoạn ghi âm
+        card.querySelector('.delete-clip-btn').addEventListener('click', () => {
+          openConfirmModal(
+            'Xóa bản ghi âm?',
+            `Bạn có chắc muốn xóa "${clip.title}" không? Hành động này không thể hoàn tác.`,
+            async () => {
+              await dbDelete('clips', clip.id);
+              await loadAllData();
+              showToast('Đã xóa bản ghi âm');
+            }
+          );
+        });
+
+        listEl.appendChild(card);
+      });
+    }
+
+    async function reorderClip(fromIndex, toIndex) {
+      const clips = state.clipsBySection[state.activeSectionId] || [];
+      if (toIndex < 0 || toIndex >= clips.length) return;
+
+      const [moved] = clips.splice(fromIndex, 1);
+      clips.splice(toIndex, 0, moved);
+
+      // Cập nhật lại thứ tự order vào IndexedDB
+      for (let i = 0; i < clips.length; i++) {
+        clips[i].order = i;
+        await dbPut('clips', clips[i]);
+      }
+      renderClipsList(clips);
+    }
+
+    function getExtensionFromMime(mime) {
+      if (!mime) return 'webm';
+      if (mime.includes('mp4') || mime.includes('aac')) return 'm4a';
+      if (mime.includes('ogg')) return 'ogg';
+      if (mime.includes('wav')) return 'wav';
+      return 'webm';
+    }
+
+    /**
+     * ============================================================================
+     * 6. GHI ÂM NHANH & SÓNG ÂM THỜI GIAN THỰC
+     * ============================================================================
+     */
+    function pickSupportedMimeType() {
+      const candidates = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/mp4',
+        'audio/ogg;codecs=opus',
+      ];
+      for (const type of candidates) {
+        if (window.MediaRecorder && MediaRecorder.isTypeSupported(type)) {
+          return type;
+        }
+      }
+      return '';
+    }
+
+    async function startRecording() {
+      if (!state.activeSectionId || recorderState.isRecording) return;
+
+      const micErrorBox = document.getElementById('micErrorBox');
+      const micErrorText = document.getElementById('micErrorText');
+      micErrorBox.classList.add('hidden');
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        micErrorText.textContent = 'Trình duyệt của bạn không hỗ trợ ghi âm hoặc trang đang không chạy trên kết nối bảo mật (HTTPS/localhost).';
+        micErrorBox.classList.remove('hidden');
+        return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+        });
+
+        const mimeType = pickSupportedMimeType();
+        const options = mimeType ? { mimeType } : {};
+        const mediaRecorder = new MediaRecorder(stream, options);
+
+        recorderState.mediaStream = stream;
+        recorderState.mediaRecorder = mediaRecorder;
+        recorderState.mimeType = mediaRecorder.mimeType || mimeType || 'audio/webm';
+        recorderState.chunks = [];
+        recorderState.isRecording = true;
+        recorderState.isPaused = false;
+        recorderState.cancelled = false;
+        recorderState.accumulatedMs = 0;
+        recorderState.startTime = Date.now();
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) {
+            recorderState.chunks.push(e.data);
+          }
+        };
+
+        mediaRecorder.onstop = async () => {
+          const totalMs = recorderState.accumulatedMs + (recorderState.isPaused ? 0 : Date.now() - recorderState.startTime);
+          const durationSec = Math.max(0.5, totalMs / 1000);
+          const wasCancelled = recorderState.cancelled;
+          const chunks = recorderState.chunks;
+          const finalMime = recorderState.mimeType;
+
+          cleanupRecorderResources();
+
+          if (!wasCancelled && chunks.length > 0) {
+            const blob = new Blob(chunks, { type: finalMime });
+            await saveNewClip(blob, finalMime, durationSec);
+          }
+        };
+
+        mediaRecorder.start(250);
+
+        // Chuyển giao diện sang đang ghi âm
+        document.getElementById('recorderIdleState').classList.add('hidden');
+        document.getElementById('recorderActiveState').classList.remove('hidden');
+        updatePauseUI(false);
+        startTimer();
+        startWaveformVisualizer(stream);
+      } catch (err) {
+        console.error('Lỗi ghi âm:', err);
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          micErrorText.textContent = 'Bạn chưa cấp quyền sử dụng Micro. Hãy bấm vào biểu tượng ổ khóa (hoặc micro) trên thanh địa chỉ trình duyệt, chọn "Cho phép" Micro rồi thử lại.';
+        } else if (err.name === 'NotFoundError') {
+          micErrorText.textContent = 'Không tìm thấy thiết bị Micro nào trên máy của bạn.';
+        } else {
+          micErrorText.textContent = `Đã xảy ra lỗi khi mở Micro: ${err.message || err.name}`;
+        }
+        micErrorBox.classList.remove('hidden');
+      }
+    }
+
+    function pauseOrResumeRecording() {
+      if (!recorderState.isRecording || !recorderState.mediaRecorder) return;
+      const mr = recorderState.mediaRecorder;
+
+      if (!recorderState.isPaused) {
+        if (mr.state === 'recording') {
+          mr.pause();
+          recorderState.accumulatedMs += Date.now() - recorderState.startTime;
+          recorderState.isPaused = true;
+          updatePauseUI(true);
+        }
+      } else {
+        if (mr.state === 'paused') {
+          mr.resume();
+          recorderState.startTime = Date.now();
+          recorderState.isPaused = false;
+          updatePauseUI(false);
+        }
+      }
+    }
+
+    function updatePauseUI(paused) {
+      const pauseIcon = document.getElementById('pauseIcon');
+      const resumeIcon = document.getElementById('resumeIcon');
+      const text = document.getElementById('pauseResumeText');
+      const label = document.getElementById('recStatusLabel');
+      const dot = document.getElementById('recLiveDot');
+
+      if (paused) {
+        pauseIcon.classList.add('hidden');
+        resumeIcon.classList.remove('hidden');
+        text.textContent = 'Tiếp tục';
+        label.textContent = 'Đang tạm dừng';
+        dot.classList.remove('recording-pulse');
+      } else {
+        pauseIcon.classList.remove('hidden');
+        resumeIcon.classList.add('hidden');
+        text.textContent = 'Tạm dừng';
+        label.textContent = 'Đang ghi âm...';
+        dot.classList.add('recording-pulse');
+      }
+    }
+
+    function stopAndSaveRecording() {
+      if (!recorderState.isRecording || !recorderState.mediaRecorder) return;
+      recorderState.cancelled = false;
+      if (recorderState.mediaRecorder.state !== 'inactive') {
+        recorderState.mediaRecorder.stop();
+      }
+    }
+
+    function cancelRecording() {
+      if (!recorderState.isRecording || !recorderState.mediaRecorder) return;
+      recorderState.cancelled = true;
+      if (recorderState.mediaRecorder.state !== 'inactive') {
+        recorderState.mediaRecorder.stop();
+      }
+      showToast('Đã hủy bản ghi âm');
+    }
+
+    function cleanupRecorderResources() {
+      recorderState.isRecording = false;
+      recorderState.isPaused = false;
+
+      if (recorderState.timerInterval) {
+        clearInterval(recorderState.timerInterval);
+        recorderState.timerInterval = null;
+      }
+      if (recorderState.animationFrameId) {
+        cancelAnimationFrame(recorderState.animationFrameId);
+        recorderState.animationFrameId = null;
+      }
+      if (recorderState.mediaStream) {
+        recorderState.mediaStream.getTracks().forEach((t) => t.stop());
+        recorderState.mediaStream = null;
+      }
+      if (recorderState.audioContext) {
+        recorderState.audioContext.close().catch(() => {});
+        recorderState.audioContext = null;
+      }
+
+      document.getElementById('recorderActiveState').classList.add('hidden');
+      document.getElementById('recorderIdleState').classList.remove('hidden');
+      document.getElementById('recTimer').textContent = '00:00';
+    }
+
+    function startTimer() {
+      const timerEl = document.getElementById('recTimer');
+      timerEl.textContent = '00:00';
+      recorderState.timerInterval = setInterval(() => {
+        if (!recorderState.isRecording) return;
+        const elapsedMs = recorderState.accumulatedMs + (recorderState.isPaused ? 0 : Date.now() - recorderState.startTime);
+        timerEl.textContent = formatDuration(elapsedMs / 1000);
+      }, 200);
+    }
+
+    function startWaveformVisualizer(stream) {
+      const canvas = document.getElementById('waveformCanvas');
+      const ctx = canvas.getContext('2d');
+
+      const resizeCanvas = () => {
+        const rect = canvas.parentElement.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      };
+      resizeCanvas();
+
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      const audioCtx = new AudioCtx();
+      const source = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 128;
+      source.connect(analyser);
+
+      recorderState.audioContext = audioCtx;
+      recorderState.analyser = analyser;
+
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      const draw = () => {
+        if (!recorderState.isRecording) return;
+        recorderState.animationFrameId = requestAnimationFrame(draw);
+
+        const width = canvas.parentElement.clientWidth;
+        const height = canvas.parentElement.clientHeight;
+        ctx.clearRect(0, 0, width, height);
+
+        if (recorderState.isPaused) {
+          // Vẽ đường thẳng tĩnh khi tạm dừng
+          ctx.strokeStyle = '#D6CFC4';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(16, height / 2);
+          ctx.lineTo(width - 16, height / 2);
+          ctx.stroke();
+          return;
+        }
+
+        analyser.getByteFrequencyData(dataArray);
+        const barCount = Math.min(48, Math.floor(width / 8));
+        const step = Math.max(1, Math.floor(bufferLength / barCount));
+        const barWidth = (width - 32) / barCount;
+
+        for (let i = 0; i < barCount; i++) {
+          const val = dataArray[i * step] || 0;
+          const norm = val / 255;
+          const barHeight = Math.max(4, norm * (height - 18));
+          const x = 16 + i * barWidth + barWidth * 0.2;
+          const y = (height - barHeight) / 2;
+
+          ctx.fillStyle = norm > 0.15 ? '#D94E4E' : '#D6CFC4';
+          ctx.beginPath();
+          ctx.roundRect(x, y, Math.max(3, barWidth * 0.6), barHeight, 4);
+          ctx.fill();
+        }
+      };
+
+      draw();
+    }
+
+    async function saveNewClip(blob, mimeType, durationSec) {
+      const sectionId = state.activeSectionId;
+      const existing = state.clipsBySection[sectionId] || [];
+      const nextNum = existing.length + 1;
+      const clipTitle = `Ghi chú #${nextNum}`;
+
+      const newClip = {
+        id: generateId('clip'),
+        sectionId,
+        title: clipTitle,
+        blob,
+        mimeType,
+        duration: durationSec,
+        createdAt: Date.now(),
+        order: existing.length,
+      };
+
+      await dbPut('clips', newClip);
+
+      // Cập nhật thời gian sửa của mục
+      const sec = state.sections.find((s) => s.id === sectionId);
+      if (sec) {
+        sec.updatedAt = Date.now();
+        await dbPut('sections', sec);
+      }
+
+      await loadAllData();
+      showToast(`Đã lưu ${clipTitle}`);
+    }
+
+    /**
+     * ============================================================================
+     * 7. GHÉP ÂM THANH & XUẤT FILE WAV (16kHz MONO 16-BIT PCM) CHO GEMINI
+     * ============================================================================
+     */
+    async function mergeClipsToWav(clips, gapSeconds, onProgress) {
+      const TARGET_SAMPLE_RATE = 16000;
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+
+      const decodeCtx = new AudioCtx();
+      const resampledChunks = [];
+      let totalSamples = 0;
+      const gapSamples = Math.floor(gapSeconds * TARGET_SAMPLE_RATE);
+
+      try {
+        for (let i = 0; i < clips.length; i++) {
+          onProgress(
+            Math.round((i / clips.length) * 80),
+            `Đang giải mã đoạn ${i + 1}/${clips.length}...`
+          );
+
+          const arrayBuffer = await clips[i].blob.arrayBuffer();
+          const decodedBuffer = await decodeCtx.decodeAudioData(arrayBuffer.slice(0));
+
+          // Resample về 16000 Hz Mono bằng OfflineAudioContext
+          const targetLength = Math.max(1, Math.ceil(decodedBuffer.duration * TARGET_SAMPLE_RATE));
+          const offlineCtx = new OfflineCtx(1, targetLength, TARGET_SAMPLE_RATE);
+          const source = offlineCtx.createBufferSource();
+          source.buffer = decodedBuffer;
+          source.connect(offlineCtx.destination);
+          source.start(0);
+
+          const renderedBuffer = await offlineCtx.startRendering();
+          const pcmData = renderedBuffer.getChannelData(0);
+          resampledChunks.push(pcmData);
+          totalSamples += pcmData.length;
+
+          if (i < clips.length - 1 && gapSamples > 0) {
+            totalSamples += gapSamples;
+          }
+        }
+      } finally {
+        await decodeCtx.close().catch(() => {});
+      }
+
+      onProgress(90, 'Đang đóng gói file WAV chuẩn 16-bit...');
+
+      // Nối toàn bộ mảng PCM kèm khoảng lặng
+      const mergedPcm = new Float32Array(totalSamples);
+      let offset = 0;
+      for (let i = 0; i < resampledChunks.length; i++) {
+        mergedPcm.set(resampledChunks[i], offset);
+        offset += resampledChunks[i].length;
+        if (i < resampledChunks.length - 1 && gapSamples > 0) {
+          offset += gapSamples; // Float32Array mặc định đã là 0 (im lặng)
+        }
+      }
+
+      const wavBlob = encodeWav16BitMono(mergedPcm, TARGET_SAMPLE_RATE);
+      onProgress(100, 'Hoàn tất!');
+      return wavBlob;
+    }
+
+    function encodeWav16BitMono(samples, sampleRate) {
+      const numChannels = 1;
+      const bitsPerSample = 16;
+      const byteRate = (sampleRate * numChannels * bitsPerSample) / 8;
+      const blockAlign = (numChannels * bitsPerSample) / 8;
+      const dataSize = samples.length * 2;
+      const buffer = new ArrayBuffer(44 + dataSize);
+      const view = new DataView(buffer);
+
+      const writeString = (offset, str) => {
+        for (let i = 0; i < str.length; i++) {
+          view.setUint8(offset + i, str.charCodeAt(i));
+        }
+      };
+
+      // RIFF chunk descriptor
+      writeString(0, 'RIFF');
+      view.setUint32(4, 36 + dataSize, true);
+      writeString(8, 'WAVE');
+
+      // fmt sub-chunk
+      writeString(12, 'fmt ');
+      view.setUint32(16, 16, true); // Subchunk1Size (16 for PCM)
+      view.setUint16(20, 1, true); // AudioFormat (1 = PCM)
+      view.setUint16(22, numChannels, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, byteRate, true);
+      view.setUint16(32, blockAlign, true);
+      view.setUint16(34, bitsPerSample, true);
+
+      // data sub-chunk
+      writeString(36, 'data');
+      view.setUint32(40, dataSize, true);
+
+      // Ghi dữ liệu PCM 16-bit signed integer
+      let offset = 44;
+      for (let i = 0; i < samples.length; i++) {
+        let s = Math.max(-1, Math.min(1, samples[i]));
+        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+        offset += 2;
+      }
+
+      return new Blob([buffer], { type: 'audio/wav' });
+    }
+
+    function triggerDownload(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function copyTextToClipboard(text) {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        showToast('Đã sao chép Prompt mẫu cho Gemini!');
+      } catch (e) {
+        showToast('Không thể tự động sao chép, vui lòng thử lại.', 'error');
+      }
+      document.body.removeChild(textarea);
+    }
+
+    /**
+     * ============================================================================
+     * 8. SAO LƯU & KHÔI PHỤC (.JSON)
+     * ============================================================================
+     */
+    function blobToBase64(blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    function base64ToBlob(dataUrl, fallbackMime) {
+      const parts = dataUrl.split(',');
+      const mimeMatch = parts[0].match(/:(.*?);/);
+      const mime = (mimeMatch && mimeMatch[1]) || fallbackMime || 'audio/webm';
+      const binary = atob(parts[1]);
+      const len = binary.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return new Blob([bytes], { type: mime });
+    }
+
+    async function handleBackupJson() {
+      try {
+        const sections = await dbGetAll('sections');
+        const clips = await dbGetAll('clips');
+
+        showToast('Đang tạo file sao lưu...');
+        const serializedClips = [];
+        for (const c of clips) {
+          const base64 = await blobToBase64(c.blob);
+          serializedClips.push({
+            id: c.id,
+            sectionId: c.sectionId,
+            title: c.title,
+            mimeType: c.mimeType,
+            duration: c.duration,
+            createdAt: c.createdAt,
+            order: c.order,
+            audioDataUrl: base64,
+          });
+        }
+
+        const payload = {
+          app: 'VoiceStudyNotesDB',
+          version: 1,
+          exportedAt: new Date().toISOString(),
+          sections,
+          clips: serializedClips,
+        };
+
+        const jsonBlob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+        const dateStr = new Date().toISOString().slice(0, 10);
+        triggerDownload(jsonBlob, `SoTayGhiAm_SaoLuu_${dateStr}.json`);
+        showToast('Đã xuất file sao lưu thành công!');
+      } catch (err) {
+        console.error(err);
+        showToast('Lỗi khi tạo file sao lưu.', 'error');
+      }
+    }
+
+    async function handleRestoreJson(file) {
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        if (!data || !Array.isArray(data.sections) || !Array.isArray(data.clips)) {
+          showToast('File sao lưu không hợp lệ.', 'error');
+          return;
+        }
+
+        for (const sec of data.sections) {
+          await dbPut('sections', sec);
+        }
+        for (const c of data.clips) {
+          const blob = base64ToBlob(c.audioDataUrl, c.mimeType);
+          await dbPut('clips', {
+            id: c.id,
+            sectionId: c.sectionId,
+            title: c.title,
+            blob,
+            mimeType: c.mimeType,
+            duration: c.duration,
+            createdAt: c.createdAt,
+            order: c.order,
+          });
+        }
+
+        await loadAllData();
+        showToast(`Đã khôi phục ${data.sections.length} mục và ${data.clips.length} bản ghi!`);
+      } catch (err) {
+        console.error(err);
+        showToast('Không thể đọc file sao lưu này.', 'error');
+      }
+    }
+
+    /**
+     * ============================================================================
+     * 9. QUẢN LÝ MODAL & SỰ KIỆN GIAO DIỆN
+     * ============================================================================
+     */
+    let sectionModalMode = 'create';
+    let editingSection = null;
+
+    function openSectionModal(mode, section = null) {
+      sectionModalMode = mode;
+      editingSection = section;
+      const modal = document.getElementById('sectionModal');
+      const titleEl = document.getElementById('sectionModalTitle');
+      const input = document.getElementById('sectionNameInput');
+
+      if (mode === 'create') {
+        titleEl.textContent = 'Tạo mục mới';
+        input.value = `Chương ${state.sections.length + 1}`;
+      } else {
+        titleEl.textContent = 'Đổi tên mục';
+        input.value = section.title;
+      }
+
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      setTimeout(() => {
+        input.focus();
+        input.select();
+      }, 50);
+    }
+
+    function closeSectionModal() {
+      const modal = document.getElementById('sectionModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    async function submitSectionModal() {
+      const input = document.getElementById('sectionNameInput');
+      const title = input.value.trim();
+      if (!title) {
+        showToast('Vui lòng nhập tên mục.', 'error');
+        return;
+      }
+
+      if (sectionModalMode === 'create') {
+        const newSec = {
+          id: generateId('sec'),
+          title,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+        await dbPut('sections', newSec);
+        state.activeSectionId = newSec.id;
+        showToast(`Đã tạo "${title}"`);
+      } else if (editingSection) {
+        editingSection.title = title;
+        editingSection.updatedAt = Date.now();
+        await dbPut('sections', editingSection);
+        showToast('Đã đổi tên mục');
+      }
+
+      closeSectionModal();
+      closeMobileSidebar();
+      await loadAllData();
+    }
+
+    let confirmCallback = null;
+    function openConfirmModal(title, message, onOk) {
+      document.getElementById('confirmModalTitle').textContent = title;
+      document.getElementById('confirmModalMessage').textContent = message;
+      confirmCallback = onOk;
+      const modal = document.getElementById('confirmModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeConfirmModal() {
+      const modal = document.getElementById('confirmModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      confirmCallback = null;
+    }
+
+    function confirmDeleteSection(sec) {
+      const clips = state.clipsBySection[sec.id] || [];
+      openConfirmModal(
+        'Xóa mục này?',
+        `Mục "${sec.title}" cùng toàn bộ ${clips.length} bản ghi âm bên trong sẽ bị xóa vĩnh viễn.`,
+        async () => {
+          for (const c of clips) {
+            await dbDelete('clips', c.id);
+          }
+          await dbDelete('sections', sec.id);
+          if (state.activeSectionId === sec.id) {
+            state.activeSectionId = null;
+          }
+          await loadAllData();
+          showToast(`Đã xóa mục "${sec.title}"`);
+        }
+      );
+    }
+
+    // Modal Xuất file gộp
+    function openExportModal() {
+      const modal = document.getElementById('exportModal');
+      document.getElementById('exportProgressContainer').classList.add('hidden');
+      document.getElementById('exportResultContainer').classList.add('hidden');
+      document.getElementById('startMergeBtn').disabled = false;
+      document.getElementById('startMergeBtn').classList.remove('hidden');
+
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeExportModal() {
+      const modal = document.getElementById('exportModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      const preview = document.getElementById('mergedPreviewAudio');
+      preview.pause();
+    }
+
+    // Sidebar di động
+    function openMobileSidebar() {
+      document.getElementById('sidebar').classList.remove('-translate-x-full');
+      document.getElementById('sidebarBackdrop').classList.remove('hidden');
+    }
+
+    function closeMobileSidebar() {
+      document.getElementById('sidebar').classList.add('-translate-x-full');
+      document.getElementById('sidebarBackdrop').classList.add('hidden');
+    }
+
+    /**
+     * ============================================================================
+     * 10. KHỞI TẠO & GẮN SỰ KIỆN
+     * ============================================================================
+     */
+    window.addEventListener('DOMContentLoaded', async () => {
+      try {
+        await openDatabase();
+        await requestPersistentStorage();
+        await loadAllData();
+      } catch (err) {
+        console.error('Lỗi khởi tạo IndexedDB:', err);
+        showToast('Không thể mở bộ nhớ IndexedDB trên trình duyệt này.', 'error');
+      }
+
+      // Sidebar di động
+      document.getElementById('mobileMenuBtn').addEventListener('click', openMobileSidebar);
+      document.getElementById('closeSidebarBtn').addEventListener('click', closeMobileSidebar);
+      document.getElementById('sidebarBackdrop').addEventListener('click', closeMobileSidebar);
+
+      // Tạo / Đổi tên mục
+      document.getElementById('addSectionBtn').addEventListener('click', () => openSectionModal('create'));
+      document.getElementById('mobileQuickAddSectionBtn').addEventListener('click', () => openSectionModal('create'));
+      document.getElementById('welcomeCreateBtn').addEventListener('click', () => openSectionModal('create'));
+      document.getElementById('renameCurrentSectionBtn').addEventListener('click', () => {
+        const sec = state.sections.find((s) => s.id === state.activeSectionId);
+        if (sec) openSectionModal('rename', sec);
+      });
+
+      document.getElementById('cancelSectionModalBtn').addEventListener('click', closeSectionModal);
+      document.getElementById('confirmSectionModalBtn').addEventListener('click', submitSectionModal);
+      document.getElementById('sectionNameInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') submitSectionModal();
+        if (e.key === 'Escape') closeSectionModal();
+      });
+
+      // Modal xác nhận
+      document.getElementById('cancelConfirmModalBtn').addEventListener('click', closeConfirmModal);
+      document.getElementById('okConfirmModalBtn').addEventListener('click', async () => {
+        const cb = confirmCallback;
+        closeConfirmModal();
+        if (cb) await cb();
+      });
+
+      // Ghi âm nhanh
+      document.getElementById('startRecordBtn').addEventListener('click', startRecording);
+      document.getElementById('pauseResumeBtn').addEventListener('click', pauseOrResumeRecording);
+      document.getElementById('saveRecordBtn').addEventListener('click', stopAndSaveRecording);
+      document.getElementById('cancelRecordBtn').addEventListener('click', cancelRecording);
+
+      // Phím tắt Space để bắt đầu / lưu ghi âm nhanh
+      document.addEventListener('keydown', (e) => {
+        if (e.code !== 'Space') return;
+        const tag = (e.target.tagName || '').toLowerCase();
+        if (tag === 'input' || tag === 'textarea' || e.target.isContentEditable) return;
+
+        // Không kích hoạt khi đang mở modal
+        const anyModalOpen = !document.getElementById('sectionModal').classList.contains('hidden') ||
+          !document.getElementById('confirmModal').classList.contains('hidden') ||
+          !document.getElementById('exportModal').classList.contains('hidden');
+        if (anyModalOpen || !state.activeSectionId) return;
+
+        e.preventDefault();
+        if (!recorderState.isRecording) {
+          startRecording();
+        } else {
+          stopAndSaveRecording();
+        }
+      });
+
+      // Modal Xuất file gộp (.WAV)
+      document.getElementById('openExportModalBtn').addEventListener('click', openExportModal);
+      document.getElementById('closeExportModalBtn').addEventListener('click', closeExportModal);
+      document.getElementById('cancelExportBtn').addEventListener('click', closeExportModal);
+
+      // Chọn khoảng lặng
+      document.querySelectorAll('.gap-option').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          state.selectedGapSeconds = parseFloat(btn.dataset.gap);
+          document.querySelectorAll('.gap-option').forEach((b) => {
+            b.className = 'gap-option py-2.5 px-3 rounded-xl border border-sand bg-cream text-xs font-medium text-charcoal hover:border-sage transition';
+          });
+          btn.className = 'gap-option py-2.5 px-3 rounded-xl border-2 border-sage bg-sage/10 text-xs font-semibold text-sage transition';
+        });
+      });
+
+      // Bắt đầu ghép WAV
+      document.getElementById('startMergeBtn').addEventListener('click', async () => {
+        const sec = state.sections.find((s) => s.id === state.activeSectionId);
+        const clips = state.clipsBySection[state.activeSectionId] || [];
+        if (!sec || clips.length === 0) return;
+
+        const startBtn = document.getElementById('startMergeBtn');
+        const progressContainer = document.getElementById('exportProgressContainer');
+        const progressBar = document.getElementById('exportProgressBar');
+        const progressText = document.getElementById('exportProgressText');
+        const progressPercent = document.getElementById('exportProgressPercent');
+        const resultContainer = document.getElementById('exportResultContainer');
+
+        startBtn.disabled = true;
+        progressContainer.classList.remove('hidden');
+        resultContainer.classList.add('hidden');
+
+        try {
+          const wavBlob = await mergeClipsToWav(clips, state.selectedGapSeconds, (pct, msg) => {
+            progressBar.style.width = `${pct}%`;
+            progressPercent.textContent = `${pct}%`;
+            progressText.textContent = msg;
+          });
+
+          const filename = `${slugifyVietnamese(sec.title)}_Gop_${clips.length}_doan.wav`;
+          state.lastMergedBlob = wavBlob;
+          state.lastMergedFilename = filename;
+
+          if (state.lastMergedUrl) URL.revokeObjectURL(state.lastMergedUrl);
+          state.lastMergedUrl = URL.createObjectURL(wavBlob);
+
+          document.getElementById('mergedPreviewAudio').src = state.lastMergedUrl;
+          document.getElementById('exportFileSize').textContent = formatBytes(wavBlob.size);
+
+          triggerDownload(wavBlob, filename);
+          resultContainer.classList.remove('hidden');
+          showToast('Đã xuất file gộp thành công!');
+        } catch (err) {
+          console.error('Lỗi ghép âm thanh:', err);
+          showToast('Có lỗi khi giải mã hoặc ghép âm thanh.', 'error');
+        } finally {
+          startBtn.disabled = false;
+        }
+      });
+
+      document.getElementById('redownloadMergedBtn').addEventListener('click', () => {
+        if (state.lastMergedBlob) {
+          triggerDownload(state.lastMergedBlob, state.lastMergedFilename);
+        }
+      });
+
+      document.getElementById('copyGeminiPromptBtn').addEventListener('click', () => {
+        const sec = state.sections.find((s) => s.id === state.activeSectionId);
+        const sectionTitle = sec ? sec.title : 'Tài liệu';
+        const prompt = `Đây là file ghi âm tổng hợp các ghi chú của tôi khi đọc "${sectionTitle}". Hãy nghe kỹ toàn bộ file ghi âm này và giúp tôi:\n1. Chép lại đầy đủ, chính xác các ý chính mà tôi đã nói (loại bỏ từ thừa, ậm ừ).\n2. Sắp xếp lại thành dàn ý khoa học theo từng đề mục rõ ràng (Tiêu đề, Ý chính, Chi tiết/Ví dụ, Ghi chú cần nhớ).\n3. Trình bày sạch đẹp, mạch lạc bằng tiếng Việt để tôi có thể sao chép thẳng sang file Word (Microsoft Word / Google Docs).`;
+        copyTextToClipboard(prompt);
+      });
+
+      // Sao lưu & Khôi phục JSON
+      document.getElementById('backupBtn').addEventListener('click', handleBackupJson);
+      document.getElementById('restoreBtn').addEventListener('click', () => {
+        document.getElementById('restoreFileInput').click();
+      });
+      document.getElementById('restoreFileInput').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          handleRestoreJson(file);
+          e.target.value = '';
+        }
+      });
+    });
+  </script>
+</body>
+</html>
